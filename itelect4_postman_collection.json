@@ -1,0 +1,196 @@
+{
+  "info": {
+    "name": "ITELECT4 Backend API (GT4 Part 1)",
+    "description": "Session 9 Postman Collection for testing Auth and Submissions CRUD",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "submissionId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "health"]
+        }
+      }
+    },
+    {
+      "name": "2. Register User",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.token) { pm.collectionVariables.set('token', json.token); }"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Student Juan\",\n  \"email\": \"juan.student@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"student\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/register",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "register"]
+        }
+      }
+    },
+    {
+      "name": "3. Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.token) { pm.collectionVariables.set('token', json.token); }"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"juan.student@example.com\",\n  \"password\": \"password123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "4. Get Current User (Me)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/me",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "me"]
+        }
+      }
+    },
+    {
+      "name": "5. Get All Submissions",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/submissions",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "submissions"]
+        }
+      }
+    },
+    {
+      "name": "6. Create Submission",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.data && json.data.id) { pm.collectionVariables.set('submissionId', json.data.id); }"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"courseCode\": \"ITELECT4\",\n  \"repoUrl\": \"https://github.com/shin486/itelect4-project\",\n  \"score\": 95,\n  \"status\": \"submitted\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/submissions",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "submissions"]
+        }
+      }
+    },
+    {
+      "name": "7. Get Submission By ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/submissions/{{submissionId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "submissions", "{{submissionId}}"]
+        }
+      }
+    },
+    {
+      "name": "8. Update Submission (PATCH)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"score\": 100,\n  \"status\": \"graded\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/submissions/{{submissionId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "submissions", "{{submissionId}}"]
+        }
+      }
+    },
+    {
+      "name": "9. Delete Submission (DELETE)",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/submissions/{{submissionId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "submissions", "{{submissionId}}"]
+        }
+      }
+    }
+  ]
+}
