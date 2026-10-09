@@ -6,19 +6,18 @@ import {
   updateSubmission,
   deleteSubmission,
 } from "../controllers/submissionController.js";
-import { authenticate } from "../middleware/auth.js";
+import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
 
-// Public routes for reading submissions
+// Protect all submission endpoints with requireAuth for complete tenant isolation
+router.use(requireAuth);
+
 router.get("/", getSubmissions);
 router.get("/:id", getSubmissionById);
-
-// Protected routes requiring authentication
-router.post("/", authenticate, createSubmission);
-router.put("/:id", authenticate, updateSubmission);
-router.patch("/:id", authenticate, updateSubmission);
-router.delete("/:id", authenticate, deleteSubmission);
+router.post("/", createSubmission);
+router.patch("/:id", updateSubmission);
+router.put("/:id", updateSubmission);
+router.delete("/:id", deleteSubmission);
 
 export default router;
-

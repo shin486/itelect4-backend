@@ -37,17 +37,19 @@ const userSchema = new Schema<UserDoc>(
   },
   {
     timestamps: true,
-    toJSON: {
-      transform(_doc, ret: any) {
-        ret.id = String(ret._id);
-        delete ret._id;
-        delete ret.__v;
-        delete ret.password;
-        return ret;
-      },
-    },
   }
 );
+
+// Configure toJSON transform to strip _id, __v, password and map id = String(ret._id)
+userSchema.set("toJSON", {
+  transform(_doc, ret: any) {
+    ret.id = String(ret._id);
+    delete ret._id;
+    delete ret.__v;
+    delete ret.password;
+    return ret;
+  },
+});
 
 // Hash password with bcrypt before saving if modified
 userSchema.pre("save", async function (next) {

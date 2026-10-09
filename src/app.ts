@@ -1,28 +1,30 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
+import mongoose from "mongoose";
 import authRoutes from "./routes/authRoutes.js";
 import submissionRoutes from "./routes/submissionRoutes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
 const app = express();
 
-// Middlewares
+// Middlewares - parsed before mounting routes
 app.use(cors());
 app.use(express.json());
 
-// Base health route
+// Base root endpoint
 app.get("/", (_req: Request, res: Response) => {
   res.status(200).json({
     message: "ITELECT4 Backend API is running",
     version: "1.0.0",
-    docs: "/api",
   });
 });
 
+// Health check endpoint conforming to GT4 specs
 app.get("/api/health", (_req: Request, res: Response) => {
+  const isConnected = mongoose.connection.readyState === 1;
   res.status(200).json({
-    status: "ok",
-    timestamp: new Date().toISOString(),
+    ok: true,
+    db: isConnected ? "connected" : "disconnected",
   });
 });
 
@@ -30,7 +32,7 @@ app.get("/api/health", (_req: Request, res: Response) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/submissions", submissionRoutes);
 
-// 404 handler for unknown routes
+// 404 handler for unmatched routes
 app.use((req: Request, res: Response) => {
   res.status(404).json({
     success: false,
@@ -38,8 +40,7 @@ app.use((req: Request, res: Response) => {
   });
 });
 
-// Global error handler
+// Global 4-argument error handler
 app.use(errorHandler);
 
 export default app;
-

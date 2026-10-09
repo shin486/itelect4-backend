@@ -15,7 +15,7 @@ interface JwtPayload {
   role?: string;
 }
 
-export const authenticate = (
+export const requireAuth = (
   req: Request,
   res: Response,
   next: NextFunction
@@ -25,7 +25,7 @@ export const authenticate = (
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     res.status(401).json({
       success: false,
-      message: "Authentication failed. No token provided or invalid header format.",
+      message: "Authentication required. Bearer token missing or malformed.",
     });
     return;
   }
@@ -36,7 +36,7 @@ export const authenticate = (
   if (!secret) {
     res.status(500).json({
       success: false,
-      message: "Server configuration error: JWT_SECRET is not defined.",
+      message: "Server configuration error: JWT_SECRET is not configured.",
     });
     return;
   }
@@ -48,8 +48,9 @@ export const authenticate = (
   } catch (error) {
     res.status(401).json({
       success: false,
-      message: "Authentication failed. Invalid or expired token.",
+      message: "Invalid or expired token.",
     });
   }
 };
 
+export const authenticate = requireAuth;

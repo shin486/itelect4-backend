@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "ITELECT4 Backend API (GT4 Part 1)",
-    "description": "Session 9 Postman Collection for testing Auth and Submissions CRUD",
+    "description": "Session 9 Postman Collection for testing Auth and Tenant-Isolated Submissions CRUD",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -105,10 +105,12 @@
       }
     },
     {
-      "name": "5. Get All Submissions",
+      "name": "5. Get Submissions (Tenant-Isolated)",
       "request": {
         "method": "GET",
-        "header": [],
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
         "url": {
           "raw": "{{baseUrl}}/api/submissions",
           "host": ["{{baseUrl}}"],
@@ -117,7 +119,7 @@
       }
     },
     {
-      "name": "6. Create Submission",
+      "name": "6. Create Submission (Tenant-Isolated)",
       "event": [
         {
           "listen": "test",
@@ -148,10 +150,12 @@
       }
     },
     {
-      "name": "7. Get Submission By ID",
+      "name": "7. Get Submission By ID (Tenant-Isolated)",
       "request": {
         "method": "GET",
-        "header": [],
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
         "url": {
           "raw": "{{baseUrl}}/api/submissions/{{submissionId}}",
           "host": ["{{baseUrl}}"],
@@ -179,7 +183,7 @@
       }
     },
     {
-      "name": "9. Delete Submission (DELETE)",
+      "name": "9. Delete Submission (DELETE - 204 No Content)",
       "request": {
         "method": "DELETE",
         "header": [

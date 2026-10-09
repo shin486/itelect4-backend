@@ -1,28 +1,15 @@
 import { Request, Response, NextFunction } from "express";
 import { Types } from "mongoose";
 import { Submission } from "../models/Submission.js";
-import { User } from "../models/User.js";
-import type { CreateSubmission, UpdateSubmission } from "../types/index.js";
 
+// GET / - Retrieve submissions owned by the authenticated student
 export const getSubmissions = async (
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
-    const filter: Record<string, unknown> = {};
-
-    if (req.query.studentId) {
-      filter.studentId = req.query.studentId;
-    }
-    if (req.query.courseCode) {
-      filter.courseCode = String(req.query.courseCode).toUpperCase();
-    }
-    if (req.query.status) {
-      filter.status = req.query.status;
-    }
-
-    const submissions = await Submission.find(filter)
+    const submissions = await Submission.find({ studentId: req.userId })
       .populate("studentId", "name email role")
       .sort({ createdAt: -1 });
 
@@ -36,6 +23,7 @@ export const getSubmissions = async (
   }
 };
 
+// GET /:id - Retrieve single submission scoped to the owner
 export const getSubmissionById = async (
   req: Request<{ id: string }>,
   res: Response,
@@ -52,15 +40,15 @@ export const getSubmissionById = async (
       return;
     }
 
-    const submission = await Submission.findById(id).populate(
-      "studentId",
-      "name email role"
-    );
+    const submission = await Submission.findOne({
+      _id: id,
+      studentId: req.userId,
+    }).populate("studentId", "name email role");
 
     if (!submission) {
       res.status(404).json({
         success: false,
-        message: "Submission not found.",
+        message: "Submission not found or unauthorized.",
       });
       return;
     }
@@ -74,47 +62,33 @@ export const getSubmissionById = async (
   }
 };
 
+// POST / - Create a new submission ensuring owner is req.userId (cannot be spoofed)
 export const createSubmission = async (
-  req: Request<{}, {}, CreateSubmission>,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
-    if (!req.userId) {
-      res.status(401).json({
-        success: false,
-        message: "Unauthorized: User ID not found in request.",
-      });
-      return;
-    }
-
-    const { courseCode, repoUrl, score, status } = req.body;
-
+    // Explicitly set studentId to req.userId AFTER spreading req.body so body input cannot spoof ownership
     const submission = await Submission.create({
-      studentId: new Types.ObjectId(req.userId),
-      courseCode,
-      repoUrl,
-      score,
-      status,
-      submittedAt: new Date(),
+      ...req.body,
+      studentId: req.userId,
     });
 
-    const populatedSubmission = await submission.populate(
-      "studentId",
-      "name email role"
-    );
+    const populated = await submission.populate("studentId", "name email role");
 
     res.status(201).json({
       success: true,
-      data: populatedSubmission,
+      data: populated,
     });
   } catch (error) {
     next(error);
   }
 };
 
+// PATCH /:id - Update submission scoped to owner using findOneAndUpdate with runValidators
 export const updateSubmission = async (
-  req: Request<{ id: string }, {}, UpdateSubmission>,
+  req: Request<{ id: string }>,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -129,49 +103,30 @@ export const updateSubmission = async (
       return;
     }
 
-    const submission = await Submission.findById(id);
+    const submission = await Submission.findOneAndUpdate(
+      { _id: id, studentId: req.userId },
+      req.body,
+      { new: true, runValidators: true }
+    ).populate("studentId", "name email role");
+
     if (!submission) {
       res.status(404).json({
         success: false,
-        message: "Submission not found.",
+        message: "Submission not found or unauthorized.",
       });
       return;
     }
-
-    // Check ownership or admin/instructor role
-    const currentUser = await User.findById(req.userId);
-    const isOwner = submission.studentId.toString() === req.userId;
-    const isPrivileged =
-      currentUser?.role === "admin" || currentUser?.role === "instructor";
-
-    if (!isOwner && !isPrivileged) {
-      res.status(403).json({
-        success: false,
-        message: "Forbidden: You are not authorized to update this submission.",
-      });
-      return;
-    }
-
-    const { courseCode, repoUrl, score, status } = req.body;
-
-    if (courseCode !== undefined) submission.courseCode = courseCode;
-    if (repoUrl !== undefined) submission.repoUrl = repoUrl;
-    if (score !== undefined) submission.score = score;
-    if (status !== undefined) submission.status = status;
-
-    await submission.save();
-
-    const updated = await submission.populate("studentId", "name email role");
 
     res.status(200).json({
       success: true,
-      data: updated,
+      data: submission,
     });
   } catch (error) {
     next(error);
   }
 };
 
+// DELETE /:id - Delete submission scoped to owner using findOneAndDelete and 204 status
 export const deleteSubmission = async (
   req: Request<{ id: string }>,
   res: Response,
@@ -188,37 +143,22 @@ export const deleteSubmission = async (
       return;
     }
 
-    const submission = await Submission.findById(id);
+    const submission = await Submission.findOneAndDelete({
+      _id: id,
+      studentId: req.userId,
+    });
+
     if (!submission) {
       res.status(404).json({
         success: false,
-        message: "Submission not found.",
+        message: "Submission not found or unauthorized.",
       });
       return;
     }
 
-    // Check ownership or admin/instructor role
-    const currentUser = await User.findById(req.userId);
-    const isOwner = submission.studentId.toString() === req.userId;
-    const isPrivileged =
-      currentUser?.role === "admin" || currentUser?.role === "instructor";
-
-    if (!isOwner && !isPrivileged) {
-      res.status(403).json({
-        success: false,
-        message: "Forbidden: You are not authorized to delete this submission.",
-      });
-      return;
-    }
-
-    await submission.deleteOne();
-
-    res.status(200).json({
-      success: true,
-      message: "Submission deleted successfully.",
-    });
+    // Answers 204 with .send() (no body) on success
+    res.status(204).send();
   } catch (error) {
     next(error);
   }
 };
-

@@ -43,15 +43,17 @@ const submissionSchema = new Schema<SubmissionDoc>(
   },
   {
     timestamps: true,
-    toJSON: {
-      transform(_doc, ret: any) {
-        ret.id = String(ret._id);
-        delete ret._id;
-        delete ret.__v;
-        return ret;
-      },
-    },
   }
 );
+
+// Configure toJSON transform to rename _id to id and delete _id and __v
+submissionSchema.set("toJSON", {
+  transform(_doc, ret: any) {
+    ret.id = String(ret._id);
+    delete ret._id;
+    delete ret.__v;
+    return ret;
+  },
+});
 
 export const Submission = model<SubmissionDoc>("Submission", submissionSchema);

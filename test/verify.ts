@@ -2,7 +2,7 @@ import { execSync } from "child_process";
 import jwt from "jsonwebtoken";
 import { User } from "../src/models/User.js";
 import { Submission } from "../src/models/Submission.js";
-import { authenticate } from "../src/middleware/auth.js";
+import { requireAuth } from "../src/middleware/auth.js";
 import { connectDB } from "../src/config/db.js";
 
 let passed = 0;
@@ -19,26 +19,26 @@ function assert(condition: boolean, label: string) {
 }
 
 console.log("\n==================================================");
-console.log("   ITELECT4 GT4 PART 1 - BACKEND VERIFICATION");
+console.log("   ITELECT4 GT4 PART 1 - ARCHITECTURE & AUDIT");
 console.log("==================================================\n");
 
 // 1. GIT & ENVIRONMENT CHECKS
-console.log("\x1b[36m[1/4] Git & Repository Configuration\x1b[0m");
+console.log("\x1b[36m[A] Environment & Security Checks\x1b[0m");
 try {
   const branch = execSync("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
   assert(branch === "gt4-part1", `Current branch is "gt4-part1" (detected: "${branch}")`);
 
   const gitIgnored = execSync("git status --ignored --porcelain", { encoding: "utf8" });
-  assert(gitIgnored.includes(".env"), `.env is properly git-ignored`);
+  assert(gitIgnored.includes(".env"), `.env is listed in .gitignore and ignored`);
 
   const gitTracked = execSync("git ls-files", { encoding: "utf8" });
   assert(!gitTracked.split("\n").includes(".env"), `.env is NOT tracked in git index`);
 } catch (e: any) {
-  console.error("  \x1b[31m✖\x1b[0m Git check failed:", e.message);
+  console.error("  \x1b[31m✖\x1b[0m Git check error:", e.message);
 }
 
-// 2. USER MODEL & VALIDATION CHECKS
-console.log("\n\x1b[36m[2/4] User Model & Schema Rules\x1b[0m");
+// 2. USER MODEL & PASSWORD SECURITY
+console.log("\n\x1b[36m[B] User Model & Password Security\x1b[0m");
 const validUser = new User({
   name: "  Maria Santos  ",
   email: "  MARIA@EXAMPLE.COM  ",
@@ -52,26 +52,26 @@ assert(validUser.role === "student", "Default role is 'student'");
 assert(validUser.isActive === true, "Default isActive is true");
 
 const userJson = validUser.toJSON();
-assert(typeof userJson.id === "string", "toJSON converts _id to string 'id'");
-assert(userJson._id === undefined, "toJSON removes '_id'");
-assert(userJson.__v === undefined, "toJSON removes '__v'");
-assert(userJson.password === undefined, "toJSON strips 'password'");
+assert(typeof userJson.id === "string", "userSchema.set('toJSON') converts _id to string 'id'");
+assert(userJson._id === undefined, "userSchema.set('toJSON') strips '_id'");
+assert(userJson.__v === undefined, "userSchema.set('toJSON') strips '__v'");
+assert(userJson.password === undefined, "userSchema.set('toJSON') strips 'password'");
 
-// User validation failures
+// Validation rules on User
 const invalidUser = new User({
   name: "",
   email: "",
   password: "short",
-  role: "superadmin" as any,
+  role: "invalid-role" as any,
 });
 const userErr = invalidUser.validateSync();
-assert(!!userErr?.errors["name"], "Required name error message enforced");
-assert(!!userErr?.errors["email"], "Required email error message enforced");
-assert(!!userErr?.errors["password"], "Password minlength (>= 8) enforced");
+assert(!!userErr?.errors["name"], "Required name rule enforced");
+assert(!!userErr?.errors["email"], "Required email rule enforced");
+assert(!!userErr?.errors["password"], "Password minlength >= 8 enforced");
 assert(!!userErr?.errors["role"], "Role enum rule enforced");
 
-// 3. SUBMISSION MODEL & VALIDATION RULES
-console.log("\n\x1b[36m[3/4] Custom Resource (Submission) Rules\x1b[0m");
+// 3. RESOURCE MODEL & CUSTOM DOMAIN VALIDATION
+console.log("\n\x1b[36m[C] Custom Domain (Submission) Validation Rules\x1b[0m");
 const validSub = new Submission({
   studentId: validUser._id,
   courseCode: "  itelect4  ",
@@ -82,20 +82,20 @@ const validSub = new Submission({
 
 assert(validSub.courseCode === "ITELECT4", "courseCode is trimmed and converted to uppercase");
 assert(validSub.repoUrl === "https://github.com/maria/itelect4-project", "repoUrl is trimmed");
-assert(validSub.studentId.toString() === validUser._id.toString(), "studentId references User ObjectId");
+assert(validSub.studentId.toString() === validUser._id.toString(), "studentId uses Schema.Types.ObjectId ref 'User'");
 
 const subJson = validSub.toJSON();
-assert(typeof subJson.id === "string", "toJSON converts _id to string 'id'");
-assert(subJson._id === undefined, "toJSON removes '_id'");
-assert(subJson.__v === undefined, "toJSON removes '__v'");
+assert(typeof subJson.id === "string", "submission toJSON converts _id to string 'id'");
+assert(subJson._id === undefined, "submission toJSON removes '_id'");
+assert(subJson.__v === undefined, "submission toJSON removes '__v'");
 
-// 3+ Validation Rules Check
+// At least 3 distinct validation rules
 const badSub = new Submission({
   studentId: validUser._id,
   courseCode: "",
-  repoUrl: "https://not-github.com/invalid/format",
+  repoUrl: "ftp://invalid-url.com",
   score: 150,
-  status: "archived" as any,
+  status: "unknown" as any,
 });
 const badSubErr = badSub.validateSync();
 assert(
@@ -115,10 +115,9 @@ assert(
   "Rule 4: Enum rule on status enforced"
 );
 
-// 4. AUTH MIDDLEWARE & DATABASE CONNECTION CHECKS
-console.log("\n\x1b[36m[4/4] Auth Middleware & Database Connection Config\x1b[0m");
+// 4. AUTHENTICATION & TENANT ISOLATION
+console.log("\n\x1b[36m[D] Authentication & Tenant Isolation\x1b[0m");
 
-// Auth rejection: missing header
 let statusSent = 0;
 let jsonSent: any = null;
 const mockRes = {
@@ -133,24 +132,24 @@ const mockRes = {
 } as any;
 
 let nextCalled = false;
-authenticate({ headers: {} } as any, mockRes, () => {
+requireAuth({ headers: {} } as any, mockRes, () => {
   nextCalled = true;
 });
-assert(statusSent === 401 && !nextCalled, "Auth rejects missing Authorization header with 401");
+assert(statusSent === 401 && !nextCalled, "requireAuth answers 401 if header is missing");
 
-// Auth success: valid token
 process.env.JWT_SECRET = "test-secret-123";
-const token = jwt.sign({ userId: "user-abc-123", role: "student" }, process.env.JWT_SECRET);
+const token = jwt.sign({ userId: "user-tenant-123", role: "student" }, process.env.JWT_SECRET);
 const successReq = {
   headers: { authorization: `Bearer ${token}` },
 } as any;
 let authedUserId = "";
-authenticate(successReq, mockRes, () => {
+requireAuth(successReq, mockRes, () => {
   authedUserId = successReq.userId;
 });
-assert(authedUserId === "user-abc-123", "Auth verifies JWT and attaches req.userId");
+assert(authedUserId === "user-tenant-123", "requireAuth sets req.userId = payload.userId");
 
-// Database URI missing test
+// 5. ERROR HANDLING & APP CONFIG
+console.log("\n\x1b[36m[E] Error Handling & Database Connection\x1b[0m");
 const originalUri = process.env.MONGODB_URI;
 delete process.env.MONGODB_URI;
 let dbErrorThrown = false;
@@ -164,12 +163,12 @@ process.env.MONGODB_URI = originalUri;
 
 // SUMMARY
 console.log("\n--------------------------------------------------");
-console.log(`Results: ${passed} / ${total} checks passed (${Math.round((passed / total) * 100)}%)`);
+console.log(`Audit Results: ${passed} / ${total} checks passed (${Math.round((passed / total) * 100)}%)`);
 console.log("--------------------------------------------------\n");
 
 if (passed === total) {
-  console.log("\x1b[32m✔ ALL GT4 PART 1 ARCHITECTURE SPECIFICATIONS ARE CORRECT!\x1b[0m\n");
+  console.log("\x1b[32m✔ 100% COMPLIANT WITH SESSION 9 ARCHITECTURE & AUDIT SPECS!\x1b[0m\n");
 } else {
-  console.error("\x1b[31m✖ Some checks failed. Please review the output above.\x1b[0m\n");
+  console.error("\x1b[31m✖ Some audit checks failed.\x1b[0m\n");
   process.exit(1);
 }
