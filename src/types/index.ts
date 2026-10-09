@@ -47,3 +47,4 @@ export type CreateSubmission = Pick<Submission, "courseCode" | "repoUrl"> &
 export type UpdateSubmission = Partial<
   Pick<Submission, "courseCode" | "repoUrl" | "score" | "status">
 >;
+

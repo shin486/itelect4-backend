@@ -21,3 +21,4 @@ router.patch("/:id", authenticate, updateSubmission);
 router.delete("/:id", authenticate, deleteSubmission);
 
 export default router;
+

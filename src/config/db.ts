@@ -14,3 +14,4 @@ export const connectDB = async (): Promise<void> => {
   const dbName = conn.connection.name || conn.connection.host;
   console.log(`MongoDB connected: ${dbName}`);
 };
+
