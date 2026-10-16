@@ -1,5 +1,8 @@
 {
   "version": 2,
   "framework": null,
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "routes": [
+    { "src": "/(.*)", "dest": "/api/index.js" }
+  ]
 }
