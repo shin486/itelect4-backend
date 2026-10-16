@@ -1,6 +1,8 @@
 // Vercel serverless function entrypoint.
-// Re-exports the Express app (with the cached DB-connection middleware) so
-// Vercel can serve it as a serverless function.
+// Wraps the Express app (with the cached DB-connection middleware) so
+// @vercel/node can invoke it per request.
 import app from "../src/app.js";
 
-export default app;
+export default async (req: Request, res: Response) => {
+  app(req, res);
+};
