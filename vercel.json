@@ -4,6 +4,7 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "framework": null,
+  "outputDirectory": "dist",
   "routes": [
     { "src": "/(.*)", "dest": "/dist/api/index.js" }
   ]
