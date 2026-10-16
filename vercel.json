@@ -5,6 +5,6 @@
   "installCommand": "npm install",
   "framework": null,
   "routes": [
-    { "src": "/(.*)", "dest": "/api/index.ts" }
+    { "src": "/(.*)", "dest": "/dist/api/index.js" }
   ]
 }
