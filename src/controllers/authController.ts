@@ -51,8 +51,10 @@ export const register = async (
 
     res.status(201).json({
       success: true,
-      token,
-      user,
+      data: {
+        token,
+        user,
+      },
     });
   } catch (error) {
     next(error);
@@ -97,8 +99,10 @@ export const login = async (
 
     res.status(200).json({
       success: true,
-      token,
-      user,
+      data: {
+        token,
+        user,
+      },
     });
   } catch (error) {
     next(error);
