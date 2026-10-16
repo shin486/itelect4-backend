@@ -48,3 +48,20 @@ export type UpdateSubmission = Partial<
   Pick<Submission, "courseCode" | "repoUrl" | "score" | "status">
 >;
 
+// ============================================
+// COURSE TYPES (GT4 PART 2)
+// ============================================
+
+// Course Interface (public shape)
+export interface Course {
+  code: string;
+  title: string;
+  units: number;
+  semester: string;
+}
+
+// Course Document type for Mongoose (derived from Course via Pick)
+export type CourseDoc = Pick<Course, "code" | "title" | "units" | "semester"> & {
+  _id: Types.ObjectId;
+};
+

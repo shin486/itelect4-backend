@@ -1,11 +1,20 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
 import mongoose from "mongoose";
+import { connectDB } from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import submissionRoutes from "./routes/submissionRoutes.js";
+import courseRoutes from "./routes/courses.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
 const app = express();
+
+// Database-waiting middleware: ensures MongoDB is connected before any route runs.
+// connectDB() is cached, so subsequent invocations reuse the existing connection.
+app.use(async (_req, _res, next) => {
+  await connectDB();
+  next();
+});
 
 // Middlewares - parsed before mounting routes
 app.use(cors());
@@ -31,6 +40,7 @@ app.get("/api/health", (_req: Request, res: Response) => {
 // Mount modular API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/submissions", submissionRoutes);
+app.use("/api/courses", courseRoutes);
 
 // 404 handler for unmatched routes
 app.use((req: Request, res: Response) => {
