@@ -1,63 +1,90 @@
-import { GoogleGenAI, ApiError } from "@google/genai";
-import { MODEL, buildContents } from "./prompt.js";
-import { reviewSchema, reviewJsonSchema, type Review } from "../schemas/review.js";
+import { GoogleGenAI, type Content } from "@google/genai";
+import { MODEL, SYSTEM_PROMPT, EXAMPLES, wrap } from "./prompt.js";
+import {
+  reviewSchema,
+  reviewJsonSchema,
+  type Review,
+} from "../schemas/review.js";
 
+// The same shape as connectDB in src/config/db.ts: nothing happens
+// when this file is imported. The client is made on the first call,
+// so a missing key is a sentence on the first AI request -- not a
+// crash for every route in the app, and not a problem for the tests
+// in Session 12, which never call Gemini at all.
 let client: GoogleGenAI | null = null;
 
 export function getClient(): GoogleGenAI {
-  if (!client) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error(
-        "GEMINI_API_KEY is not configured. Set it in your .env file.",
-      );
-    }
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "GEMINI_API_KEY is missing. Add it to .env, and to Vercel.",
+    );
+  }
+  if (client === null) {
     client = new GoogleGenAI({ apiKey });
   }
   return client;
 }
 
-export class AiReplyError extends Error {
-  constructor(message: string, public readonly cause?: unknown) {
-    super(message);
-    this.name = "AiReplyError";
-  }
+// The two examples become two finished exchanges -- a user turn, then
+// the model's reply -- and the real description is the last turn.
+// To the model it looks like a conversation it has already had twice.
+export function buildContents(description: string): Content[] {
+  const shots: Content[] = EXAMPLES.flatMap((example) => [
+    { role: "user", parts: [{ text: wrap(example.description) }] },
+    {
+      role: "model",
+      parts: [{ text: JSON.stringify(example.review) }],
+    },
+  ]);
+  return [
+    ...shots,
+    { role: "user", parts: [{ text: wrap(description) }] },
+  ];
 }
 
-export async function reviewProject(prompt: string): Promise<Review> {
-  const ai = getClient();
-  const contents = buildContents(prompt);
+// Thrown when Gemini answered but the answer is unusable. The route
+// turns it into a 502; anything else stays a 500.
+export class AiReplyError extends Error {}
 
-  const response = await ai.models.generateContent({
+export async function reviewProject(
+  description: string,
+): Promise<Review> {
+  const response = await getClient().models.generateContent({
     model: MODEL,
-    contents,
+    contents: buildContents(description),
     config: {
+      systemInstruction: SYSTEM_PROMPT,
+      // JSON, in exactly this shape. Without these two lines the
+      // reply is prose, and prose cannot be put on a screen field
+      // by field.
       responseMimeType: "application/json",
       responseJsonSchema: reviewJsonSchema,
+      // No temperature here, on purpose. Google's guide for the
+      // Gemini 3 models says to leave it at its default of 1.0.
     },
   });
 
+  // undefined when there is no text at all -- for example a reply
+  // that was blocked by Gemini's safety filters.
   const text = response.text;
-  if (!text || text.trim().length === 0) {
-    throw new AiReplyError("Gemini returned an empty response.");
+  if (!text) {
+    throw new AiReplyError("Gemini sent back no text");
   }
 
-  let parsed: unknown;
+  let data: unknown;
   try {
-    parsed = JSON.parse(text);
-  } catch (cause) {
-    throw new AiReplyError("Gemini returned invalid JSON.", cause);
+    data = JSON.parse(text);
+  } catch {
+    throw new AiReplyError("Gemini's reply was not JSON");
   }
 
-  const result = reviewSchema.safeParse(parsed);
+  // The schema was a request, and this is the check. The same rule
+  // as a fetch reply in the frontend: nothing that arrived over the
+  // network is a Review until something has checked it is one.
+  const result = reviewSchema.safeParse(data);
   if (!result.success) {
-    throw new AiReplyError(
-      "Gemini reply failed schema validation: ",
-      result.error,
-    );
+    throw new AiReplyError("Gemini's reply did not match the schema");
   }
-
   return result.data;
 }
-
-export { ApiError };

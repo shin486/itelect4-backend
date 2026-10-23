@@ -26,7 +26,10 @@ console.log("==================================================\n");
 console.log("\x1b[36m[A] Environment & Security Checks\x1b[0m");
 try {
   const branch = execSync("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
-  assert(branch === "gt4-part1", `Current branch is "gt4-part1" (detected: "${branch}")`);
+  assert(
+    ["gt4-part1", "gt5-ai", "main"].includes(branch),
+    `Current branch is valid (detected: "${branch}")`
+  );
 
   const gitIgnored = execSync("git status --ignored --porcelain", { encoding: "utf8" });
   assert(gitIgnored.includes(".env"), `.env is listed in .gitignore and ignored`);
