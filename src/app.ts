@@ -5,6 +5,7 @@ import { connectDB } from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import submissionRoutes from "./routes/submissionRoutes.js";
 import courseRoutes from "./routes/courses.js";
+import aiRoutes from "./routes/ai.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
 const app = express();
@@ -41,6 +42,7 @@ app.get("/api/health", (_req: Request, res: Response) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/submissions", submissionRoutes);
 app.use("/api/courses", courseRoutes);
+app.use("/api/ai", aiRoutes);
 
 // 404 handler for unmatched routes
 app.use((req: Request, res: Response) => {
