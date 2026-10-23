@@ -1,75 +1,74 @@
-import { Router, Request, Response, NextFunction } from "express";
-import rateLimit from "express-rate-limit";
+import { Router, type Request, type Response } from "express";
+import { rateLimit } from "express-rate-limit";
+import { ApiError } from "@google/genai";
 import { requireAuth } from "../middleware/auth.js";
 import { aiRequestSchema } from "../schemas/review.js";
-import { reviewProject, AiReplyError, ApiError } from "../ai/gemini.js";
+import { reviewProject, AiReplyError } from "../ai/gemini.js";
 
-const aiRouter = Router();
+export const aiRouter = Router();
 
+// Private, like submissions. Every call spends YOUR Gemini quota, so
+// an anonymous visitor must not be able to make one.
 aiRouter.use(requireAuth);
 
-export const aiLimiter = rateLimit({
+// Five requests a minute per account. It sits below requireAuth, so
+// req.userId exists by the time the limiter reads it -- and the limit
+// follows the account, not the network the request came from. A
+// whole classroom shares one Wi-Fi address; counting by address
+// would make 50 students share 5 requests.
+const aiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 5,
-  keyGenerator: (req) => req.userId!,
-  standardHeaders: true,
+  limit: 5,
+  keyGenerator: (req: Request) => req.userId!,
+  standardHeaders: "draft-8",
   legacyHeaders: false,
   message: {
-    success: false,
-    message: "AI review rate limit exceeded. Try again in a minute.",
+    message: "Five reviews a minute is the limit. Try again shortly.",
   },
 });
 
-aiRouter.post(
-  "/review",
-  aiLimiter,
-  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    const parse = aiRequestSchema.safeParse(req.body);
-    if (!parse.success) {
-      res.status(400).json({
-        success: false,
-        message: "Validation error.",
-        errors: parse.error.issues.map((i) => i.message),
+aiRouter.use(aiLimiter);
+
+// POST /api/ai
+aiRouter.post("/", async (req: Request, res: Response) => {
+  // safeParse, not parse: it returns the problem instead of throwing
+  // it, so the 400 is written here, next to the rule it reports.
+  const parsed = aiRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({
+      message: "Validation failed",
+      errors: parsed.error.issues.map((issue) => issue.message),
+    });
+    return;
+  }
+
+  try {
+    const review = await reviewProject(parsed.data.prompt);
+    res.json(review);
+  } catch (err) {
+    // 429 from Gemini means the quota of the Google project behind
+    // GEMINI_API_KEY is used up -- not this API's own limit above.
+    if (err instanceof ApiError && err.status === 429) {
+      res.status(429).json({
+        message: "The AI quota is used up for now. Try again later.",
       });
       return;
     }
 
-    const { prompt } = parse.data;
-
-    try {
-      const review = await reviewProject(prompt);
-      res.status(200).json({ success: true, data: review });
+    // Gemini refused, failed, or answered with something unusable.
+    // Log the real reason for Vercel's Runtime Logs; the browser
+    // gets a sentence and none of Google's error text.
+    if (err instanceof ApiError || err instanceof AiReplyError) {
+      console.error(err);
+      res.status(502).json({
+        message: "The AI service did not answer properly. Try again.",
+      });
       return;
-    } catch (error) {
-      if (error instanceof ApiError) {
-        if (error.status === 429) {
-          res.status(429).json({
-            success: false,
-            message:
-              "Gemini API quota exhausted. Please try again later or check your API key quota.",
-          });
-          return;
-        }
-        res.status(error.status || 502).json({
-          success: false,
-          message: error.message || "Gemini API error.",
-        });
-        return;
-      }
-
-      if (error instanceof AiReplyError) {
-        res.status(502).json({
-          success: false,
-          message: "AI review could not be completed.",
-          detail: error.message,
-        });
-        return;
-      }
-
-      next(error);
     }
+
+    // Anything else is a bug in this app: app.ts's error handler.
+    throw err;
   }
-,
-);
+});
 
 export default aiRouter;

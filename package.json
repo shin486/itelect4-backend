@@ -9,6 +9,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "seed": "tsx src/seed.ts",
+    "try-ai": "tsx src/try-ai.ts",
     "typecheck": "tsc --noEmit",
     "test": "tsx test/verify.ts"
   },
