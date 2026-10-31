@@ -1,92 +1,82 @@
-# ITELECT4 Backend
+# itelect4-backend
 
-ITELECT4 Graded Task 4 (GT4) — Backend REST API built with Node.js, Express, TypeScript, and MongoDB Atlas. Deployed on Vercel.
+[![CI](https://github.com/shin486/itelect4-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/shin486/itelect4-backend/actions/workflows/ci.yml)
 
-## 🔗 Live Backend URL
+The REST API behind the ITELECT4 portal: Express in TypeScript, MongoDB Atlas through Mongoose, JWT authentication, and an AI Review endpoint that analyzes student project submissions using the Google Gemini API.
 
-**https://itelect4-backend-tau.vercel.app**
+- **Live API:** https://itelect4-backend-tau.vercel.app/api/health
+- **Frontend repo:** https://github.com/shin486/itelect4-project
 
-## 📋 API Endpoints
+## Architecture
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/health` | Health check — returns DB connection status |
-| POST | `/api/auth/register` | Register a new user |
-| POST | `/api/auth/login` | Login and receive JWT token |
-| GET | `/api/auth/me` | Get current user (requires auth) |
-
-### Health Check
-```bash
-curl https://itelect4-backend-tau.vercel.app/api/health
-# → {"ok":true,"db":"connected"}
+```mermaid
+flowchart LR
+  fe["itelect4-project<br/>React + Vite on Vercel"]
+  be["itelect4-backend<br/>Express on Vercel"]
+  db[("MongoDB Atlas")]
+  ai["Gemini API"]
+  fe -- "fetch + Bearer token" --> be
+  be -- "Mongoose" --> db
+  be -- "GEMINI_API_KEY" --> ai
 ```
 
-### Login
-```bash
-curl -X POST https://itelect4-backend-tau.vercel.app/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","password":"password123"}'
-# → {"success":true,"data":{"token":"...","user":{...}}}
-```
+## API Endpoints
 
-## 🛠️ Tech Stack
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/health` | Public | Health check — returns MongoDB connection status |
+| POST | `/api/auth/register` | Public | Register a new user |
+| POST | `/api/auth/login` | Public | Authenticate user & return signed JWT |
+| GET | `/api/auth/me` | Bearer JWT | Retrieve current user profile |
+| GET | `/api/courses` | Public | List available courses |
+| GET | `/api/submissions` | Bearer JWT | List student submissions |
+| POST | `/api/submissions` | Bearer JWT | Create a new submission |
+| POST | `/api/ai` | Bearer JWT | Request AI review of project description via Gemini |
 
-- **Runtime:** Node.js
-- **Framework:** Express.js
-- **Language:** TypeScript
-- **Database:** MongoDB Atlas (Mongoose)
-- **Auth:** JWT (jsonwebtoken)
-- **Deployment:** Vercel (`@vercel/node`)
+## Tech Stack
 
-## 🚀 Local Development
+- **Runtime:** Node.js (v24)
+- **Framework:** Express 4
+- **Language:** TypeScript 5
+- **Database:** MongoDB Atlas via Mongoose 8
+- **Authentication:** JWT (`jsonwebtoken`) + `bcryptjs`
+- **Validation:** Zod 4
+- **AI Integration:** Google Gemini API (`@google/genai`)
+- **Testing:** Vitest + Supertest
+- **CI/CD:** GitHub Actions
+
+## Local Development
 
 ```bash
 # Install dependencies
 npm install
 
-# Copy environment variables
+# Copy environment template
 cp .env.example .env
-# Edit .env with your MONGODB_URI and JWT_SECRET
+# Configure MONGODB_URI, JWT_SECRET, CORS_ORIGIN, GEMINI_API_KEY, PORT
 
-# Run in development
+# Run in development with hot reload
 npm run dev
+
+# Run automated tests
+npm test
+
+# Type-check TypeScript
+npm run typecheck
 
 # Build for production
 npm run build
-
-# Start production server
-npm start
 ```
 
-## 🌍 Deployment (Vercel)
+## Testing & CI
 
-1. Connect this repo to Vercel
-2. Add environment variables in Vercel dashboard:
-   - `MONGODB_URI` — MongoDB Atlas connection string
-   - `JWT_SECRET` — Secret key for JWT signing
-3. Deploy — Vercel auto-detects `@vercel/node` functions in `api/`
+Supertest and Vitest test the protected `POST /api/ai` endpoint:
+- Validates rejection of requests missing an Authorization header (`401`).
+- Validates rejection of forged or expired tokens (`401`).
+- Validates that a valid JWT bypasses `requireAuth` and reaches the request schema without invoking the external Gemini service or connecting to the database.
 
-## 📁 Project Structure
+GitHub Actions runs typecheck and test suites on every push with secret injection.
 
-```
-itelect4-backend/
-├── api/
-│   └── index.ts          # Vercel serverless handler
-├── src/
-│   ├── app.ts            # Express app setup
-│   ├── config/db.js      # MongoDB connection
-│   ├── controllers/authController.ts
-│   ├── middleware/auth.js
-│   ├── models/User.js
-│   ├── routes/authRoutes.ts
-│   ├── routes/submissionRoutes.ts
-│   ├── routes/courses.ts
-│   └── types/index.ts
-├── vercel.json           # Vercel configuration
-├── tsconfig.json
-└── package.json
-```
+## AI-Use Disclosure
 
-## 🔗 Frontend Repo
-
-[ITELECT4 Frontend](https://github.com/shin486/itelect4-project)
+In accordance with course guidelines, AI coding assistance (Gemini 3.8 / Antigravity) was used for test harness implementation, CI pipeline YAML configuration, Supertest integration validation, and architectural documentation. All route logic and tests were verified and tested locally.
