@@ -1,11 +1,10 @@
 import type { Review } from "../schemas/review.js";
 
 // An alias, not a version. Google points it at the current Flash
-// model, so a model being retired does not break this app between
-// now and the end of the semester. The cost: the model can change
-// underneath you, so the same prompt may answer a little differently
-// next month.
-export const MODEL = "gemini-flash-latest";
+// Lite model, so a model being retired does not break this app between
+// now and the end of the semester. Using the lite alias avoids long reasoning
+// delays and 503 high demand spikes.
+export const MODEL = "gemini-flash-lite-latest";
 
 // The system prompt: the instructions that apply to EVERY request,
 // sent separately from what the student typed.
